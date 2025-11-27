@@ -1,13 +1,21 @@
 // --- Configuration Constants ---
 const START_SPEED = 0.5;
-const MAX_SPEED = 3;       
-const SCORE_THRESHOLD = 500; 
-const TURN_TIME_LIMIT = 5000; // 5 Seconds in milliseconds
+const MAX_SPEED = 2.5;       
+const SCORE_THRESHOLD = 100; 
+const TURN_TIME_LIMIT = 5000; // 5 Seconds
 
 // Zone Dimensions
 const CENTER = 50;
 const RING_WIDTH = 20;     
 const BULLSEYE_WIDTH = 6;  
+
+// --- Audio Assets ---
+// Ensure these files are in the same folder as your index.html
+const sfxBullseye = new Audio('bullseye.wav');
+const sfxInside   = new Audio('inside.wav');
+const sfxFail     = new Audio('fail.wav');
+const sfxLost     = new Audio('lost.wav');
+const sfxStreak   = new Audio('streak.wav'); // Ready for future use
 
 // --- Game Variables ---
 let score = 0;
@@ -39,11 +47,17 @@ const ringMax = CENTER + (RING_WIDTH / 2);
 const bullMin = CENTER - (BULLSEYE_WIDTH / 2);
 const bullMax = CENTER + (BULLSEYE_WIDTH / 2);
 
+// --- Sound Helper ---
+function playSound(audioObj) {
+    // Reset time to 0 so we can replay sound instantly if triggered rapidly
+    audioObj.currentTime = 0;
+    audioObj.play().catch(e => console.log("Audio play failed (interaction needed first):", e));
+}
+
 // --- The Game Loop ---
 function gameLoop(timestamp) {
     if (!isRunning) return;
 
-    // Calculate time delta for smooth timer
     if (!lastFrameTime) lastFrameTime = timestamp;
     const deltaTime = timestamp - lastFrameTime;
     lastFrameTime = timestamp;
@@ -51,11 +65,9 @@ function gameLoop(timestamp) {
     // 1. Update Timer
     timeLeft -= deltaTime;
     
-    // Update Bar Visual
     const pct = Math.max(0, (timeLeft / TURN_TIME_LIMIT) * 100);
     timerBarEl.style.width = pct + '%';
 
-    // Check Time Out
     if (timeLeft <= 0) {
         handleTimeOut();
         return;
@@ -90,9 +102,9 @@ function handleInput() {
 function startRound() {
     isRunning = true;
     messageEl.textContent = ""; 
-    timeLeft = TURN_TIME_LIMIT; // Reset Timer
-    lastFrameTime = performance.now(); // Reset timestamp
-    timerBarEl.style.backgroundColor = "#e74c3c"; // Reset color
+    timeLeft = TURN_TIME_LIMIT; 
+    lastFrameTime = performance.now(); 
+    timerBarEl.style.backgroundColor = "#e74c3c"; 
     gameLoop(performance.now());
 }
 
@@ -106,7 +118,6 @@ function handleTimeOut() {
     isRunning = false;
     cancelAnimationFrame(animationFrameId);
     
-    // Treat as a miss
     lives--;
     updateStats();
     
@@ -114,9 +125,12 @@ function handleTimeOut() {
     messageEl.style.color = "#f00";
     timerBarEl.style.width = "0%";
 
+    // Sound Logic: Fail or Lost
     if (lives <= 0) {
+        playSound(sfxLost);
         endGame();
     } else {
+        playSound(sfxFail);
         initiateCooldown();
     }
 }
@@ -127,21 +141,30 @@ function processResult() {
     let message = "";
     let color = "";
 
+    // 1. BULLSEYE
     if (hitPos >= bullMin && hitPos <= bullMax) {
         score += 5;
         if (lives < maxLives) lives++;
         message = "BULLSEYE! (+5)";
         color = "#0f0"; 
+        playSound(sfxBullseye);
     } 
+    // 2. INSIDE (Ring)
     else if (hitPos >= ringMin && hitPos <= ringMax) {
         score += 2;
         message = "HIT! (+2)";
         color = "#fff"; 
+        playSound(sfxInside);
     } 
+    // 3. MISS (Fail)
     else {
         lives--;
         message = "MISS! (-1 Life)";
         color = "#f00"; 
+        
+        if (lives > 0) {
+            playSound(sfxFail);
+        }
     }
 
     recalculateSpeed();
@@ -151,6 +174,8 @@ function processResult() {
     messageEl.style.color = color;
 
     if (lives <= 0) {
+        // If we just lost our last life on a miss
+        playSound(sfxLost);
         endGame();
     } else {
         initiateCooldown();
@@ -174,7 +199,7 @@ function initiateCooldown() {
         if (!isGameOver) {
             resetPosition(); 
             isInputLocked = false;
-            startRound(); // Auto-start next round
+            startRound(); 
         }
     }, 2000);
 }
@@ -182,8 +207,6 @@ function initiateCooldown() {
 function resetPosition() {
     lightPosition = 50;
     lightEl.style.left = '50%';
-    
-    // Visual reset of timer bar
     timerBarEl.style.width = '100%'; 
 }
 
@@ -194,12 +217,11 @@ function updateStats() {
 
 function endGame() {
     isGameOver = true;
-    isRunning = false; // Ensure loop stops
+    isRunning = false; 
     messageEl.textContent = `GAME OVER. Score: ${score}. Click or Space to Reset.`;
 }
 
 function resetGame() {
-    // Full Reset
     score = 0;
     lives = 3;
     currentSpeed = START_SPEED;
@@ -207,7 +229,7 @@ function resetGame() {
     isInputLocked = false;
     isRunning = false;
     
-    cancelAnimationFrame(animationFrameId); // Ensure no background loops
+    cancelAnimationFrame(animationFrameId); 
     
     updateStats();
     resetPosition();
@@ -217,26 +239,19 @@ function resetGame() {
 }
 
 // --- Event Listeners ---
-
-// 1. Spacebar
 window.addEventListener('keydown', (e) => {
-    // ESC Button to Stop/Reset
     if (e.code === 'Escape') {
         e.preventDefault();
-        resetGame(); // Stops game and goes to start screen
+        resetGame(); 
         return;
     }
-
-    // Spacebar to Play
     if (e.code === 'Space') {
         e.preventDefault();
         handleInput();
     }
 });
 
-// 2. Mouse Click
 window.addEventListener('mousedown', (e) => {
-    // Prevent interaction if clicking unrelated buttons (if any exist later)
     e.preventDefault(); 
     handleInput();
 });
