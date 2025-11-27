@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smash It</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>SMASH IT</h1>
+        
+        <div class="stats-board">
+            <div class="stat-box">Score: <span id="score-val">0</span></div>
+            <div class="stat-box">Lives: <span id="lives-val">3</span></div>
+        </div>
+
+        <div id="game-area">
+            <div class="track"></div>
+            
+            <div class="target-ring"></div>
+            <div class="target-bullseye"></div>
+
+            <div id="light" class="light"></div>
+        </div>
+
+        <div id="message" class="message">Press Space to Start</div>
+        
+        <div class="controls-hint">Press SPACEBAR to stop the light</div>
+    </div>
+
+    <script src="mechanics.js"></script>
+</body>
+</html>
