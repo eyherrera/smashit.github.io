@@ -1,7 +1,7 @@
 // --- Configuration Constants ---
 const START_SPEED = 0.5;
 const MAX_SPEED = 2.5;       
-const SCORE_THRESHOLD = 100; 
+const SCORE_THRESHOLD = 500; 
 const TURN_TIME_LIMIT = 5000; // 5 Seconds
 
 // Zone Dimensions
@@ -10,17 +10,19 @@ const RING_WIDTH = 20;
 const BULLSEYE_WIDTH = 6;  
 
 // --- Audio Assets ---
-// Ensure these files are in the same folder as your index.html
 const sfxBullseye = new Audio('bullseye.wav');
 const sfxInside   = new Audio('inside.wav');
 const sfxFail     = new Audio('fail.wav');
 const sfxLost     = new Audio('lost.wav');
-const sfxStreak   = new Audio('streak.wav'); // Ready for future use
+const sfxStreak   = new Audio('streak.wav');
 
 // --- Game Variables ---
 let score = 0;
 let lives = 3;
 const maxLives = 3;
+
+// Streak Variable
+let streakCount = 0; 
 
 let lightPosition = 50; 
 let direction = 1;      
@@ -49,9 +51,8 @@ const bullMax = CENTER + (BULLSEYE_WIDTH / 2);
 
 // --- Sound Helper ---
 function playSound(audioObj) {
-    // Reset time to 0 so we can replay sound instantly if triggered rapidly
     audioObj.currentTime = 0;
-    audioObj.play().catch(e => console.log("Audio play failed (interaction needed first):", e));
+    audioObj.play().catch(e => console.log("Audio play failed:", e));
 }
 
 // --- The Game Loop ---
@@ -64,7 +65,6 @@ function gameLoop(timestamp) {
 
     // 1. Update Timer
     timeLeft -= deltaTime;
-    
     const pct = Math.max(0, (timeLeft / TURN_TIME_LIMIT) * 100);
     timerBarEl.style.width = pct + '%';
 
@@ -119,13 +119,13 @@ function handleTimeOut() {
     cancelAnimationFrame(animationFrameId);
     
     lives--;
+    streakCount = 0; // Reset streak on timeout
     updateStats();
     
     messageEl.textContent = "TIME UP! (-1 Life)";
     messageEl.style.color = "#f00";
     timerBarEl.style.width = "0%";
 
-    // Sound Logic: Fail or Lost
     if (lives <= 0) {
         playSound(sfxLost);
         endGame();
@@ -143,14 +143,39 @@ function processResult() {
 
     // 1. BULLSEYE
     if (hitPos >= bullMin && hitPos <= bullMax) {
-        score += 5;
+        streakCount++; // Increment Streak
+        let points = 5;
+        let isStreakBonus = false;
+
+        // Check for Streak Completion (5 in a row)
+        if (streakCount === 5) {
+            points += 20; // Bonus
+            isStreakBonus = true;
+            streakCount = 0; // Reset counter after reward
+        }
+
+        score += points;
         if (lives < maxLives) lives++;
-        message = "BULLSEYE! (+5)";
-        color = "#0f0"; 
-        playSound(sfxBullseye);
+        
+        if (isStreakBonus) {
+            message = "🔥 STREAK! (+25 Points) 🔥";
+            color = "#ff00ff"; // Magenta for streak
+            
+            // Audio Chain: Play Bullseye, THEN Streak
+            playSound(sfxBullseye);
+            sfxBullseye.onended = function() {
+                playSound(sfxStreak);
+                sfxBullseye.onended = null; // Clean up listener
+            };
+        } else {
+            message = `BULLSEYE! (+5) [Streak: ${streakCount}/5]`;
+            color = "#0f0"; 
+            playSound(sfxBullseye);
+        }
     } 
     // 2. INSIDE (Ring)
     else if (hitPos >= ringMin && hitPos <= ringMax) {
+        streakCount = 0; // Reset Streak
         score += 2;
         message = "HIT! (+2)";
         color = "#fff"; 
@@ -158,6 +183,7 @@ function processResult() {
     } 
     // 3. MISS (Fail)
     else {
+        streakCount = 0; // Reset Streak
         lives--;
         message = "MISS! (-1 Life)";
         color = "#f00"; 
@@ -174,7 +200,6 @@ function processResult() {
     messageEl.style.color = color;
 
     if (lives <= 0) {
-        // If we just lost our last life on a miss
         playSound(sfxLost);
         endGame();
     } else {
@@ -224,6 +249,7 @@ function endGame() {
 function resetGame() {
     score = 0;
     lives = 3;
+    streakCount = 0; // Reset streak on new game
     currentSpeed = START_SPEED;
     isGameOver = false;
     isInputLocked = false;
