@@ -1,15 +1,16 @@
 // --- Configuration Constants ---
 const START_SPEED = 0.5;
 const MAX_SPEED = 2.5;       
-const SCORE_THRESHOLD = 500; 
-const TURN_TIME_LIMIT = 5000; // 5 Seconds
+const SCORE_THRESHOLD = 100; // Score at which max speed is reached
+const TURN_TIME_LIMIT = 5000; // 5 Seconds per turn
 
-// Zone Dimensions
+// Zone Dimensions (Percentages)
 const CENTER = 50;
 const RING_WIDTH = 20;     
 const BULLSEYE_WIDTH = 6;  
 
 // --- Audio Assets ---
+// Make sure these .wav files are in the same folder
 const sfxBullseye = new Audio('bullseye.wav');
 const sfxInside   = new Audio('inside.wav');
 const sfxFail     = new Audio('fail.wav');
@@ -51,8 +52,9 @@ const bullMax = CENTER + (BULLSEYE_WIDTH / 2);
 
 // --- Sound Helper ---
 function playSound(audioObj) {
+    // Reset time to 0 so we can replay sound instantly if triggered rapidly
     audioObj.currentTime = 0;
-    audioObj.play().catch(e => console.log("Audio play failed:", e));
+    audioObj.play().catch(e => console.log("Audio play failed (user interaction required):", e));
 }
 
 // --- The Game Loop ---
@@ -123,7 +125,11 @@ function handleTimeOut() {
     updateStats();
     
     messageEl.textContent = "TIME UP! (-1 Life)";
-    messageEl.style.color = "#f00";
+    
+    // Visual Effects
+    animateMessageColor(messageEl, "#f00", 2000);
+    triggerRippleEffect(lightPosition, 'miss');
+    
     timerBarEl.style.width = "0%";
 
     if (lives <= 0) {
@@ -140,10 +146,12 @@ function processResult() {
     let hitPos = lightPosition;
     let message = "";
     let color = "";
+    let zoneType = "miss"; // Default for ripple
 
     // 1. BULLSEYE
     if (hitPos >= bullMin && hitPos <= bullMax) {
-        streakCount++; // Increment Streak
+        zoneType = "bullseye";
+        streakCount++; 
         let points = 5;
         let isStreakBonus = false;
 
@@ -169,35 +177,42 @@ function processResult() {
             };
         } else {
             message = `BULLSEYE! (+5) [Streak: ${streakCount}/5]`;
-            color = "#0f0"; 
+            color = "#0f0"; // Green
             playSound(sfxBullseye);
         }
     } 
     // 2. INSIDE (Ring)
     else if (hitPos >= ringMin && hitPos <= ringMax) {
+        zoneType = "ring";
         streakCount = 0; // Reset Streak
         score += 2;
         message = "HIT! (+2)";
-        color = "#fff"; 
+        color = "#00bfff"; // Deep Sky Blue
         playSound(sfxInside);
     } 
     // 3. MISS (Fail)
     else {
+        zoneType = "miss";
         streakCount = 0; // Reset Streak
         lives--;
         message = "MISS! (-1 Life)";
-        color = "#f00"; 
+        color = "#f00"; // Red
         
         if (lives > 0) {
             playSound(sfxFail);
         }
     }
 
+    // Trigger Visual Effects
+    triggerRippleEffect(hitPos, zoneType);
+    
     recalculateSpeed();
     updateStats();
 
     messageEl.textContent = message;
-    messageEl.style.color = color;
+    
+    // Trigger Text Fade Effect (White -> Color)
+    animateMessageColor(messageEl, color, 2000);
 
     if (lives <= 0) {
         playSound(sfxLost);
@@ -211,6 +226,7 @@ function recalculateSpeed() {
     if (score >= SCORE_THRESHOLD) {
         currentSpeed = MAX_SPEED;
     } else {
+        // Linear Interpolation
         const progress = score / SCORE_THRESHOLD;
         const speedRange = MAX_SPEED - START_SPEED;
         currentSpeed = START_SPEED + (progress * speedRange);
@@ -222,9 +238,12 @@ function initiateCooldown() {
     
     setTimeout(() => {
         if (!isGameOver) {
+            // Remove the fade effect so the interface text is crisp
+            clearMessageEffects(messageEl); 
+            
             resetPosition(); 
             isInputLocked = false;
-            startRound(); 
+            startRound(); // Auto-start next round
         }
     }, 2000);
 }
@@ -243,13 +262,16 @@ function updateStats() {
 function endGame() {
     isGameOver = true;
     isRunning = false; 
+    
+    clearMessageEffects(messageEl); 
     messageEl.textContent = `GAME OVER. Score: ${score}. Click or Space to Reset.`;
+    messageEl.style.color = "#ffcc00"; // Gold
 }
 
 function resetGame() {
     score = 0;
     lives = 3;
-    streakCount = 0; // Reset streak on new game
+    streakCount = 0; 
     currentSpeed = START_SPEED;
     isGameOver = false;
     isInputLocked = false;
@@ -260,17 +282,20 @@ function resetGame() {
     updateStats();
     resetPosition();
     
+    clearMessageEffects(messageEl); 
     messageEl.textContent = "Press Space or Click to Start";
     messageEl.style.color = "#ffcc00";
 }
 
 // --- Event Listeners ---
 window.addEventListener('keydown', (e) => {
+    // ESC to Reset
     if (e.code === 'Escape') {
         e.preventDefault();
         resetGame(); 
         return;
     }
+    // Space to Play
     if (e.code === 'Space') {
         e.preventDefault();
         handleInput();
