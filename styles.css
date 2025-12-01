@@ -89,16 +89,24 @@ body {
 
 .light {
     position: absolute;
-    top: 10px;
-    bottom: 10px;
-    width: 10px;
-    background-color: #0f0;
-    box-shadow: 0 0 10px #0f0;
+    /* Center vertically relative to the track */
+    top: 50%;
+    transform: translate(-50%, -50%); 
+    
+    /* Fixed size to create a perfect circle */
+    width: 24px;
+    height: 24px;
+    border-radius: 50%; 
+
+    /* Initial color (JS will update this immediately) */
+    background-color: #fff;
+    box-shadow: 0 0 15px #fff;
+    
     left: 50%;
     z-index: 4;
-    transform: translateX(-50%);
+    /* Smooth transition for color changes */
+    transition: background-color 0.1s ease-out, box-shadow 0.1s ease-out;
 }
-
 .message {
     font-size: 1.5rem;
     color: #ffcc00;

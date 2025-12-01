@@ -1,8 +1,8 @@
 // --- Configuration Constants ---
 const START_SPEED = 1.0;
 const MAX_SPEED = 3.0;       
-const SEQUENCES_TO_MAX_SPEED = 100; // Hit max speed at 100 clears
-const TURN_TIME_LIMIT = 10000; // 10 Seconds constant
+const SEQUENCES_TO_MAX_SPEED = 100; 
+const TURN_TIME_LIMIT = 5000; 
 
 // Zone Dimensions
 const CENTER = 50;
@@ -18,7 +18,7 @@ const sfxStreak   = new Audio('streak.wav');
 
 // --- Game Variables ---
 let score = 0;
-let sequencesCleared = 0; // New Difficulty Tracker
+let sequencesCleared = 0; 
 let lives = 3;
 const maxLives = 3;
 
@@ -47,9 +47,32 @@ const ringMax = CENTER + (RING_WIDTH / 2);
 const bullMin = CENTER - (BULLSEYE_WIDTH / 2);
 const bullMax = CENTER + (BULLSEYE_WIDTH / 2);
 
+// --- Color Constants (RGB strings for easy use) ---
+const COLOR_BULLSEYE = '0, 123, 255'; // Blue
+const COLOR_RING     = '40, 200, 80'; // Green
+const COLOR_MISS     = '255, 140, 0'; // Orange
+
 function playSound(audioObj) {
     audioObj.currentTime = 0;
     audioObj.play().catch(e => console.log("Audio play failed:", e));
+}
+
+// --- NEW: Dynamic Light Color Handler ---
+function updateLightColor(pos) {
+    let colorRgb;
+
+    // Priority check: Bullseye -> Ring -> Miss
+    if (pos >= bullMin && pos <= bullMax) {
+        colorRgb = COLOR_BULLSEYE;
+    } else if (pos >= ringMin && pos <= ringMax) {
+        colorRgb = COLOR_RING;
+    } else {
+        colorRgb = COLOR_MISS;
+    }
+
+    lightEl.style.backgroundColor = `rgb(${colorRgb})`;
+    // Add a nice glowing effect
+    lightEl.style.boxShadow = `0 0 20px rgb(${colorRgb}), 0 0 5px rgb(${colorRgb}) inset`;
 }
 
 // --- The Game Loop ---
@@ -70,10 +93,12 @@ function gameLoop(timestamp) {
         return;
     }
 
-    // 2. Move Light (VIA SEQUENCES)
+    // 2. Move Light
     lightPosition = getSequencePosition(deltaTime, currentSpeed);
-
     lightEl.style.left = lightPosition + '%';
+
+    // 3. --- UPDATE COLOR BASED ON NEW POSITION ---
+    updateLightColor(lightPosition);
 
     animationFrameId = requestAnimationFrame(gameLoop);
 }
@@ -138,6 +163,9 @@ function processResult() {
     let zoneType = "miss";
     let hitSuccess = false;
 
+    // Ensure color is updated exactly where it stopped
+    updateLightColor(hitPos);
+
     // 1. BULLSEYE
     if (hitPos >= bullMin && hitPos <= bullMax) {
         zoneType = "bullseye";
@@ -191,10 +219,9 @@ function processResult() {
 
     triggerRippleEffect(hitPos, zoneType);
     
-    // Only increment difficulty on success
     if (hitSuccess) {
-        sequencesCleared++; // Increase cleared count
-        nextSequence();     // Advance to next pattern
+        sequencesCleared++; 
+        nextSequence();     
     }
 
     recalculateSpeed();
@@ -212,7 +239,6 @@ function processResult() {
 }
 
 function recalculateSpeed() {
-    // Speed increases based on sequencesCleared (maxes at 100)
     if (sequencesCleared >= SEQUENCES_TO_MAX_SPEED) {
         currentSpeed = MAX_SPEED;
     } else {
@@ -227,10 +253,7 @@ function initiateCooldown() {
     setTimeout(() => {
         if (!isGameOver) {
             clearMessageEffects(messageEl); 
-            
-            // USE THE NEW HELPER FUNCTION HERE
             resetSequenceTimer(); 
-
             isInputLocked = false;
             startRound(); 
         }
@@ -240,6 +263,8 @@ function initiateCooldown() {
 function resetPosition() {
     lightPosition = 50; 
     lightEl.style.left = '50%';
+    // Ensure color is correct on reset (it will be blue for center)
+    updateLightColor(lightPosition);
     timerBarEl.style.width = '100%'; 
 }
 
@@ -258,7 +283,7 @@ function endGame() {
 
 function resetGame() {
     score = 0;
-    sequencesCleared = 0; // Reset difficulty
+    sequencesCleared = 0; 
     lives = 3;
     streakCount = 0; 
     currentSpeed = START_SPEED;
@@ -266,7 +291,7 @@ function resetGame() {
     isInputLocked = false;
     isRunning = false;
     
-    resetSequences(); // Back to Sequence 1
+    resetSequences();
 
     cancelAnimationFrame(animationFrameId); 
     
@@ -296,4 +321,5 @@ window.addEventListener('mousedown', (e) => {
     handleInput();
 });
 
+// Initial Setup
 resetPosition();
