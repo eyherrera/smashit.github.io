@@ -3,7 +3,7 @@
  * Handles the movement patterns (choreography) of the light.
  */
 
-// Easing Functions
+// --- Easing Functions ---
 const Easing = {
     linear: t => t,
     easeInOutQuad: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
@@ -14,9 +14,13 @@ const Easing = {
 // Base duration for a "standard" movement across screen (in ms)
 const BASE_DURATION = 2000; 
 
-// The Definition of Sequences
+// --- Sequence Definitions ---
+// val: Target position % (0-100)
+// time: Relative time unit (multiplies BASE_DURATION)
+// ease: Easing function for the transition
+// fixedDuration: If true, ignores game speed multiplier (for pauses)
 const SEQUENCES = [
-    // SEQUENCE 1: Back and Forth (Standard)
+    // 1. Back and Forth (Standard)
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.easeInOutQuad },
@@ -24,14 +28,14 @@ const SEQUENCES = [
             { val: 0,   time: 2.0, ease: Easing.easeInOutQuad }
         ]
     },
-    // SEQUENCE 2: Left to Right Teleport
+    // 2. Left to Right Teleport
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.linear },
             { val: 100, time: 1.0, ease: Easing.linear }
         ]
     },
-    // SEQUENCE 3: The "Tease"
+    // 3. The "Tease"
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.easeInOutQuad },
@@ -43,23 +47,24 @@ const SEQUENCES = [
             { val: 0,   time: 4.0, ease: Easing.easeInOutQuad }  
         ]
     },
-    // SEQUENCE 4: Pause and Shoot
+    // 4. Pause and Shoot
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.linear },       
+            // FIXED STEP: Stays 1.0s (0.5 * 2000ms) regardless of game speed
             { val: 0,   time: 0.5, ease: Easing.linear, fixedDuration: true },       
             { val: 100, time: 1.0, ease: Easing.easeInOutQuad }, 
             { val: 0,   time: 1.5, ease: Easing.easeInOutQuad }  
         ]
     },
-    // SEQUENCE 5: Right to Left Teleport
+    // 5. Right to Left Teleport
     {
         steps: [
             { val: 100, time: 0,   ease: Easing.linear },
             { val: 0,   time: 1.0, ease: Easing.linear }
         ]
     },
-    // SEQUENCE 6: Double Fake Left
+    // 6. Double Fake Left
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.easeInOutQuad },
@@ -71,7 +76,7 @@ const SEQUENCES = [
             { val: 0,   time: 4.0, ease: Easing.easeInOutQuad }  
         ]
     },
-    // SEQUENCE 7: Bullseye Sniping
+    // 7. Bullseye Sniping
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.easeInOutQuad },
@@ -83,7 +88,7 @@ const SEQUENCES = [
             { val: 0,   time: 4.0, ease: Easing.easeInOutQuad }  
         ]
     },
-    // SEQUENCE 8: Chaos Pattern
+    // 8. Chaos Pattern
     {
         steps: [
             { val: 0,   time: 0,   ease: Easing.easeInOutQuad },
@@ -114,16 +119,20 @@ function resetSequences() {
     sequenceTimer = 0;
 }
 
-// NEW HELPER: Safely reset the timer from outside this file
+// Allows mechanics.js to safely reset the timer logic
 function resetSequenceTimer() {
     sequenceTimer = 0;
 }
 
+/**
+ * Calculates position based on elapsed time and sequences.
+ * Handles the "fixedDuration" logic for specific steps.
+ */
 function getSequencePosition(deltaTime, speedMultiplier) {
     const seq = SEQUENCES[currentSeqIndex];
     const totalDuration = seq.steps[seq.steps.length - 1].time;
     
-    // Look ahead to see if the ACTIVE step has fixedDuration
+    // 1. Look ahead to see if the ACTIVE step has fixedDuration
     const loopedTimerLookup = sequenceTimer % totalDuration;
     let isFixedStep = false;
 
@@ -136,12 +145,14 @@ function getSequencePosition(deltaTime, speedMultiplier) {
         }
     }
 
-    // If fixed step, ignore speed multiplier (use 1.0)
+    // 2. Determine effective speed (1.0 for fixed steps, normal for others)
     const effectiveSpeed = isFixedStep ? 1.0 : speedMultiplier;
 
+    // 3. Increment Timer
     sequenceTimer += (deltaTime * effectiveSpeed) / BASE_DURATION;
     const loopedTime = sequenceTimer % totalDuration;
 
+    // 4. Find current step and interpolate position
     for (let i = 0; i < seq.steps.length - 1; i++) {
         const startStep = seq.steps[i];
         const endStep = seq.steps[i+1];
@@ -151,6 +162,7 @@ function getSequencePosition(deltaTime, speedMultiplier) {
             const stepProgress = (loopedTime - startStep.time) / stepDuration;
             const easedProgress = endStep.ease(stepProgress);
             const range = endStep.val - startStep.val;
+            
             return startStep.val + (range * easedProgress);
         }
     }

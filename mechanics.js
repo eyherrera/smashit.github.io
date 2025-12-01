@@ -1,10 +1,10 @@
-// --- Configuration Constants ---
+// --- Configuration & Constants ---
 const START_SPEED = 1.0;
 const MAX_SPEED = 3.0;       
 const SEQUENCES_TO_MAX_SPEED = 100; 
 const TURN_TIME_LIMIT = 15000; 
 
-// Zone Dimensions
+// Zone Dimensions (%)
 const CENTER = 50;
 const RING_WIDTH = 25;
 const BULLSEYE_WIDTH = 6;  
@@ -16,19 +16,20 @@ const sfxFail     = new Audio('fail.wav');
 const sfxLost     = new Audio('lost.wav');
 const sfxStreak   = new Audio('streak.wav');
 
-// --- Game Variables ---
+// --- Game State ---
 let score = 0;
 let sequencesCleared = 0; 
 let lives = 3;
 const maxLives = 3;
-
 let streakCount = 0; 
+
+// Movement & Timing
 let lightPosition = 50; 
 let currentSpeed = START_SPEED;
 let timeLeft = TURN_TIME_LIMIT;
 let lastFrameTime = 0;
 
-// --- State Flags ---
+// Flags
 let isRunning = false;     
 let isGameOver = false;    
 let isInputLocked = false; 
@@ -36,24 +37,22 @@ let animationFrameId;
 
 // --- DOM Elements ---
 const lightEl = document.getElementById('light');
-const gameAreaEl = document.getElementById('game-area'); // Need this for lighting
+const gameAreaEl = document.getElementById('game-area'); 
 const scoreEl = document.getElementById('score-val');
 const livesEl = document.getElementById('lives-val');
 const messageEl = document.getElementById('message');
 const timerBarEl = document.getElementById('timer-bar');
 
-// --- Boundaries ---
+// --- Boundaries Calculation ---
 const ringMin = CENTER - (RING_WIDTH / 2);
 const ringMax = CENTER + (RING_WIDTH / 2);
 const bullMin = CENTER - (BULLSEYE_WIDTH / 2);
 const bullMax = CENTER + (BULLSEYE_WIDTH / 2);
 
-// --- Color Constants ---
+// --- Visuals: Colors ---
 const COLOR_BULLSEYE = '0, 123, 255'; // Blue
 const COLOR_RING     = '40, 200, 80'; // Green
 const COLOR_MISS     = '255, 140, 0'; // Orange
-
-// Store current active color for the environment glow
 let currentColorRgb = COLOR_BULLSEYE; 
 
 function playSound(audioObj) {
@@ -61,9 +60,9 @@ function playSound(audioObj) {
     audioObj.play().catch(e => console.log("Audio play failed:", e));
 }
 
-// --- NEW: Dynamic Environment Lighting ---
+// --- Visuals: Dynamic Lighting ---
 function updateEnvironmentLighting(pos) {
-    // 1. Determine Color based on position
+    // 1. Determine active color based on zone
     if (pos >= bullMin && pos <= bullMax) {
         currentColorRgb = COLOR_BULLSEYE;
     } else if (pos >= ringMin && pos <= ringMax) {
@@ -72,13 +71,11 @@ function updateEnvironmentLighting(pos) {
         currentColorRgb = COLOR_MISS;
     }
 
-    // 2. Update the Light Element itself
+    // 2. Apply color to the Light Element
     lightEl.style.backgroundColor = `rgb(${currentColorRgb})`;
     lightEl.style.boxShadow = `0 0 15px rgb(${currentColorRgb}), 0 0 5px rgb(${currentColorRgb}) inset`;
 
-    // 3. Update the Track Background (The "Lighting Up" effect)
-    // We create a radial gradient centered at the light's position
-    // This makes the floor and edges "glow" as the light passes
+    // 3. Update Background Track (creates the "floor glow" effect)
     gameAreaEl.style.background = `
         radial-gradient(
             circle at ${pos}% 50%, 
@@ -88,11 +85,11 @@ function updateEnvironmentLighting(pos) {
         )
     `;
     
-    // Optional: Subtle border glow
+    // Subtle border reflection
     gameAreaEl.style.borderColor = `rgba(${currentColorRgb}, 0.3)`;
 }
 
-// --- The Game Loop ---
+// --- Main Game Loop ---
 function gameLoop(timestamp) {
     if (!isRunning) return;
 
@@ -100,7 +97,7 @@ function gameLoop(timestamp) {
     const deltaTime = timestamp - lastFrameTime;
     lastFrameTime = timestamp;
 
-    // 1. Update Timer
+    // Update Timer
     timeLeft -= deltaTime;
     const pct = Math.max(0, (timeLeft / TURN_TIME_LIMIT) * 100);
     timerBarEl.style.width = pct + '%';
@@ -110,11 +107,11 @@ function gameLoop(timestamp) {
         return;
     }
 
-    // 2. Move Light
+    // Move Light (logic handled in sequences.js)
     lightPosition = getSequencePosition(deltaTime, currentSpeed);
     lightEl.style.left = lightPosition + '%';
 
-    // 3. Update Lighting Effects
+    // Update Visuals
     updateEnvironmentLighting(lightPosition);
 
     animationFrameId = requestAnimationFrame(gameLoop);
@@ -172,7 +169,7 @@ function handleTimeOut() {
     }
 }
 
-// --- Core Logic ---
+// --- Core Gameplay Logic ---
 function processResult() {
     let hitPos = lightPosition;
     let message = "";
@@ -180,18 +177,21 @@ function processResult() {
     let zoneType = "miss";
     let hitSuccess = false;
 
-    // Force update lighting to catch exact stop position
+    // Force one last lighting update to catch the exact stop position
     updateEnvironmentLighting(hitPos);
 
-    // 1. BULLSEYE
+    // 1. Check Bullseye
     if (hitPos >= bullMin && hitPos <= bullMax) {
         zoneType = "bullseye";
         streakCount++; 
         let points = 5;
         let isStreakBonus = false;
 
+        // Streak Bonus (Every 5th hit)
         if (streakCount === 5) {
-            points += 20; isStreakBonus = true; streakCount = 0; 
+            points += 20; 
+            isStreakBonus = true; 
+            streakCount = 0; 
         }
 
         score += points;
@@ -201,6 +201,7 @@ function processResult() {
             message = "🔥 STREAK! (+25 Points) 🔥";
             color = "#ff00ff"; 
             playSound(sfxBullseye);
+            // Play streak sound after bullseye finishes
             sfxBullseye.onended = function() {
                 playSound(sfxStreak);
                 sfxBullseye.onended = null; 
@@ -212,7 +213,7 @@ function processResult() {
         }
         hitSuccess = true;
     } 
-    // 2. RING
+    // 2. Check Ring
     else if (hitPos >= ringMin && hitPos <= ringMax) {
         zoneType = "ring";
         streakCount = 0; 
@@ -222,7 +223,7 @@ function processResult() {
         playSound(sfxInside);
         hitSuccess = true;
     } 
-    // 3. MISS
+    // 3. Miss
     else {
         zoneType = "miss";
         streakCount = 0; 
@@ -236,6 +237,7 @@ function processResult() {
 
     triggerRippleEffect(hitPos, zoneType);
     
+    // Increase difficulty and advance sequence only on success
     if (hitSuccess) {
         sequencesCleared++; 
         nextSequence();     
@@ -255,6 +257,7 @@ function processResult() {
     }
 }
 
+// Adjust speed based on how many sequences have been cleared
 function recalculateSpeed() {
     if (sequencesCleared >= SEQUENCES_TO_MAX_SPEED) {
         currentSpeed = MAX_SPEED;
@@ -270,7 +273,7 @@ function initiateCooldown() {
     setTimeout(() => {
         if (!isGameOver) {
             clearMessageEffects(messageEl); 
-            resetSequenceTimer(); 
+            resetSequenceTimer(); // Reset the specific sequence's timer
             isInputLocked = false;
             startRound(); 
         }
@@ -280,8 +283,7 @@ function initiateCooldown() {
 function resetPosition() {
     lightPosition = 50; 
     lightEl.style.left = '50%';
-    // Reset lighting to center (blue)
-    updateEnvironmentLighting(lightPosition);
+    updateEnvironmentLighting(lightPosition); // Reset glow to center blue
     timerBarEl.style.width = '100%'; 
 }
 
@@ -308,7 +310,7 @@ function resetGame() {
     isInputLocked = false;
     isRunning = false;
     
-    resetSequences();
+    resetSequences(); // Back to Sequence 1
 
     cancelAnimationFrame(animationFrameId); 
     

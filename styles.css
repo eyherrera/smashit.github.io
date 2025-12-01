@@ -1,5 +1,5 @@
 body {
-    background-color: #111; /* Darker bg for contrast */
+    background-color: #111; /* Dark background for high contrast */
     color: white;
     font-family: 'Courier New', Courier, monospace;
     display: flex;
@@ -10,7 +10,7 @@ body {
     overflow: hidden;
 }
 
-/* Timer Bar Styles */
+/* --- UI: Timer Bar --- */
 .timer-container {
     position: absolute;
     top: 0;
@@ -27,9 +27,10 @@ body {
     transition: width 0.1s linear;
 }
 
+/* --- Game Container & Stats --- */
 .game-container {
     position: relative;
-    z-index: 1;
+    z-index: 1; /* Sits above the effects layer */
     text-align: center;
     width: 80%;
     max-width: 600px;
@@ -43,36 +44,34 @@ body {
     font-weight: bold;
 }
 
-/* --- UPDATED GAME AREA --- */
+/* --- The Main Board --- */
 #game-area {
     position: relative;
     width: 100%;
-    height: 80px; /* Slightly taller to accommodate roundness */
+    height: 80px; 
     background-color: #222;
     border: 2px solid #444;
     margin-bottom: 20px;
     overflow: hidden;
     
-    /* ROUNDED CORNERS */
     border-radius: 20px; 
     
-    /* Smooth transition for the dynamic lighting background */
+    /* Smooth transition for the dynamic lighting background effects */
     transition: border-color 0.2s;
 }
 
-/* Removed the .track line completely as requested */
 .track {
     display: none;
 }
 
-/* --- UPDATED RING SIZE (30%) --- */
+/* --- Hit Zones --- */
 .target-ring {
     position: absolute;
     left: 50%;
     top: 0;
     height: 100%;
-    width: 25%; /* Increased from 20% -> 30% (50% increase) */
-    background-color: rgba(68, 68, 68, 0.5); /* Semi-transparent */
+    width: 25%; 
+    background-color: rgba(68, 68, 68, 0.5); 
     border-left: 2px solid #666;
     border-right: 2px solid #666;
     transform: translateX(-50%);
@@ -92,33 +91,36 @@ body {
     z-index: 3;
 }
 
-/* The Moving Light - Circle */
+/* --- The Player (Light) --- */
 .light {
     position: absolute;
     top: 50%;
+    left: 50%;
+    
+    /* Center anchor point so coordinates align with the middle of the circle */
     transform: translate(-50%, -50%); 
     
     width: 24px;
     height: 24px;
     border-radius: 50%; 
 
+    /* Initial visual state (JS handles dynamic coloring) */
     background-color: #fff;
     box-shadow: 0 0 15px #fff;
     
-    left: 50%;
     z-index: 4;
     transition: background-color 0.1s ease-out, box-shadow 0.1s ease-out;
 }
 
-/* New Visual Effects Styles */
+/* --- Visual Effects Layer --- */
 #effects-layer {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    z-index: -1;
+    pointer-events: none; /* Ensures clicks pass through to game controls */
+    z-index: -1; /* Renders behind the game UI */
     overflow: hidden;
 }
 
@@ -137,6 +139,7 @@ body {
     100% { transform: translate(-50%, -50%) scale(50); opacity: 0; }
 }
 
+/* --- Messages & Text --- */
 .message {
     font-size: 1.5rem;
     color: #ffcc00;
