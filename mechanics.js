@@ -2,11 +2,11 @@
 const START_SPEED = 1.0;
 const MAX_SPEED = 3.0;       
 const SEQUENCES_TO_MAX_SPEED = 100; 
-const TURN_TIME_LIMIT = 5000; 
+const TURN_TIME_LIMIT = 15000; 
 
 // Zone Dimensions
 const CENTER = 50;
-const RING_WIDTH = 20;     
+const RING_WIDTH = 25;
 const BULLSEYE_WIDTH = 6;  
 
 // --- Audio Assets ---
@@ -36,6 +36,7 @@ let animationFrameId;
 
 // --- DOM Elements ---
 const lightEl = document.getElementById('light');
+const gameAreaEl = document.getElementById('game-area'); // Need this for lighting
 const scoreEl = document.getElementById('score-val');
 const livesEl = document.getElementById('lives-val');
 const messageEl = document.getElementById('message');
@@ -47,32 +48,48 @@ const ringMax = CENTER + (RING_WIDTH / 2);
 const bullMin = CENTER - (BULLSEYE_WIDTH / 2);
 const bullMax = CENTER + (BULLSEYE_WIDTH / 2);
 
-// --- Color Constants (RGB strings for easy use) ---
+// --- Color Constants ---
 const COLOR_BULLSEYE = '0, 123, 255'; // Blue
 const COLOR_RING     = '40, 200, 80'; // Green
 const COLOR_MISS     = '255, 140, 0'; // Orange
+
+// Store current active color for the environment glow
+let currentColorRgb = COLOR_BULLSEYE; 
 
 function playSound(audioObj) {
     audioObj.currentTime = 0;
     audioObj.play().catch(e => console.log("Audio play failed:", e));
 }
 
-// --- NEW: Dynamic Light Color Handler ---
-function updateLightColor(pos) {
-    let colorRgb;
-
-    // Priority check: Bullseye -> Ring -> Miss
+// --- NEW: Dynamic Environment Lighting ---
+function updateEnvironmentLighting(pos) {
+    // 1. Determine Color based on position
     if (pos >= bullMin && pos <= bullMax) {
-        colorRgb = COLOR_BULLSEYE;
+        currentColorRgb = COLOR_BULLSEYE;
     } else if (pos >= ringMin && pos <= ringMax) {
-        colorRgb = COLOR_RING;
+        currentColorRgb = COLOR_RING;
     } else {
-        colorRgb = COLOR_MISS;
+        currentColorRgb = COLOR_MISS;
     }
 
-    lightEl.style.backgroundColor = `rgb(${colorRgb})`;
-    // Add a nice glowing effect
-    lightEl.style.boxShadow = `0 0 20px rgb(${colorRgb}), 0 0 5px rgb(${colorRgb}) inset`;
+    // 2. Update the Light Element itself
+    lightEl.style.backgroundColor = `rgb(${currentColorRgb})`;
+    lightEl.style.boxShadow = `0 0 15px rgb(${currentColorRgb}), 0 0 5px rgb(${currentColorRgb}) inset`;
+
+    // 3. Update the Track Background (The "Lighting Up" effect)
+    // We create a radial gradient centered at the light's position
+    // This makes the floor and edges "glow" as the light passes
+    gameAreaEl.style.background = `
+        radial-gradient(
+            circle at ${pos}% 50%, 
+            rgba(${currentColorRgb}, 0.25) 0%, 
+            rgba(${currentColorRgb}, 0.05) 40%, 
+            rgba(34, 34, 34, 1) 70%
+        )
+    `;
+    
+    // Optional: Subtle border glow
+    gameAreaEl.style.borderColor = `rgba(${currentColorRgb}, 0.3)`;
 }
 
 // --- The Game Loop ---
@@ -97,8 +114,8 @@ function gameLoop(timestamp) {
     lightPosition = getSequencePosition(deltaTime, currentSpeed);
     lightEl.style.left = lightPosition + '%';
 
-    // 3. --- UPDATE COLOR BASED ON NEW POSITION ---
-    updateLightColor(lightPosition);
+    // 3. Update Lighting Effects
+    updateEnvironmentLighting(lightPosition);
 
     animationFrameId = requestAnimationFrame(gameLoop);
 }
@@ -163,8 +180,8 @@ function processResult() {
     let zoneType = "miss";
     let hitSuccess = false;
 
-    // Ensure color is updated exactly where it stopped
-    updateLightColor(hitPos);
+    // Force update lighting to catch exact stop position
+    updateEnvironmentLighting(hitPos);
 
     // 1. BULLSEYE
     if (hitPos >= bullMin && hitPos <= bullMax) {
@@ -263,8 +280,8 @@ function initiateCooldown() {
 function resetPosition() {
     lightPosition = 50; 
     lightEl.style.left = '50%';
-    // Ensure color is correct on reset (it will be blue for center)
-    updateLightColor(lightPosition);
+    // Reset lighting to center (blue)
+    updateEnvironmentLighting(lightPosition);
     timerBarEl.style.width = '100%'; 
 }
 

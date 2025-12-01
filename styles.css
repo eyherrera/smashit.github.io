@@ -1,5 +1,5 @@
 body {
-    background-color: #222;
+    background-color: #111; /* Darker bg for contrast */
     color: white;
     font-family: 'Courier New', Courier, monospace;
     display: flex;
@@ -7,7 +7,7 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
-    overflow: hidden; /* Prevent scrollbars */
+    overflow: hidden;
 }
 
 /* Timer Bar Styles */
@@ -23,11 +23,13 @@ body {
 #timer-bar {
     width: 100%;
     height: 100%;
-    background-color: #e74c3c; /* Red color */
-    transition: width 0.1s linear; /* Smooth shrinking */
+    background-color: #e74c3c;
+    transition: width 0.1s linear;
 }
 
 .game-container {
+    position: relative;
+    z-index: 1;
     text-align: center;
     width: 80%;
     max-width: 600px;
@@ -41,35 +43,38 @@ body {
     font-weight: bold;
 }
 
+/* --- UPDATED GAME AREA --- */
 #game-area {
     position: relative;
     width: 100%;
-    height: 60px;
-    background-color: #333;
-    border: 2px solid #555;
+    height: 80px; /* Slightly taller to accommodate roundness */
+    background-color: #222;
+    border: 2px solid #444;
     margin-bottom: 20px;
     overflow: hidden;
+    
+    /* ROUNDED CORNERS */
+    border-radius: 20px; 
+    
+    /* Smooth transition for the dynamic lighting background */
+    transition: border-color 0.2s;
 }
 
+/* Removed the .track line completely as requested */
 .track {
-    position: absolute;
-    top: 50%;
-    width: 100%;
-    height: 2px;
-    background-color: #555;
-    transform: translateY(-50%);
-    z-index: 1;
+    display: none;
 }
 
+/* --- UPDATED RING SIZE (30%) --- */
 .target-ring {
     position: absolute;
     left: 50%;
     top: 0;
     height: 100%;
-    width: 20%;
-    background-color: #444;
-    border-left: 2px solid #777;
-    border-right: 2px solid #777;
+    width: 25%; /* Increased from 20% -> 30% (50% increase) */
+    background-color: rgba(68, 68, 68, 0.5); /* Semi-transparent */
+    border-left: 2px solid #666;
+    border-right: 2px solid #666;
     transform: translateX(-50%);
     z-index: 2;
 }
@@ -80,33 +85,58 @@ body {
     top: 0;
     height: 100%;
     width: 6%;
-    background-color: #666;
+    background-color: rgba(102, 102, 102, 0.5);
     border-left: 2px solid #fff;
     border-right: 2px solid #fff;
     transform: translateX(-50%);
     z-index: 3;
 }
 
+/* The Moving Light - Circle */
 .light {
     position: absolute;
-    /* Center vertically relative to the track */
     top: 50%;
     transform: translate(-50%, -50%); 
     
-    /* Fixed size to create a perfect circle */
     width: 24px;
     height: 24px;
     border-radius: 50%; 
 
-    /* Initial color (JS will update this immediately) */
     background-color: #fff;
     box-shadow: 0 0 15px #fff;
     
     left: 50%;
     z-index: 4;
-    /* Smooth transition for color changes */
     transition: background-color 0.1s ease-out, box-shadow 0.1s ease-out;
 }
+
+/* New Visual Effects Styles */
+#effects-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.ripple-effect {
+    position: absolute;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    animation: rippleExpand 1.5s ease-out forwards;
+}
+
+@keyframes rippleExpand {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(50); opacity: 0; }
+}
+
 .message {
     font-size: 1.5rem;
     color: #ffcc00;
@@ -117,51 +147,4 @@ body {
     margin-top: 30px;
     color: #888;
     font-size: 0.8rem;
-}
-
-/* The container sits behind everything */
-#effects-layer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* Ensure clicks pass through it */
-    z-index: -1; /* Behind the game container */
-    overflow: hidden;
-}
-
-/* The individual expanding circle */
-.ripple-effect {
-    position: absolute;
-    top: 50%; /* Always centered vertically, matching the game track */
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    /* Center anchor point for scaling */
-    transform: translate(-50%, -50%) scale(1);
-    animation: rippleExpand 1.5s ease-out forwards;
-}
-
-/* The expansion animation */
-@keyframes rippleExpand {
-    0% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.8;
-    }
-    100% {
-        /* Scale hugely to cover screen */
-        transform: translate(-50%, -50%) scale(50); 
-        opacity: 0;
-    }
-}
-
-/* Ensure game container sits above effects layer */
-.game-container {
-    position: relative;
-    z-index: 1;
-    /* ... existing styles ... */
-    text-align: center;
-    width: 80%;
-    max-width: 600px;
 }
