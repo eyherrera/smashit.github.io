@@ -1,8 +1,8 @@
 // --- Configuration Constants ---
-const START_SPEED = 1.0;     // Changed: 1.0 is now "Standard 1x Speed"
-const MAX_SPEED = 3.0;       // Max 3x speed
-const SCORE_THRESHOLD = 100; 
-const TURN_TIME_LIMIT = 50000; 
+const START_SPEED = 1.0;
+const MAX_SPEED = 3.0;       
+const SEQUENCES_TO_MAX_SPEED = 100; // Hit max speed at 100 clears
+const TURN_TIME_LIMIT = 10000; // 10 Seconds constant
 
 // Zone Dimensions
 const CENTER = 50;
@@ -18,13 +18,12 @@ const sfxStreak   = new Audio('streak.wav');
 
 // --- Game Variables ---
 let score = 0;
+let sequencesCleared = 0; // New Difficulty Tracker
 let lives = 3;
 const maxLives = 3;
 
 let streakCount = 0; 
-
 let lightPosition = 50; 
-// Removed 'direction' - handled by sequences.js now
 let currentSpeed = START_SPEED;
 let timeLeft = TURN_TIME_LIMIT;
 let lastFrameTime = 0;
@@ -72,7 +71,6 @@ function gameLoop(timestamp) {
     }
 
     // 2. Move Light (VIA SEQUENCES)
-    // We pass deltaTime and the current Speed Multiplier
     lightPosition = getSequencePosition(deltaTime, currentSpeed);
 
     lightEl.style.left = lightPosition + '%';
@@ -112,13 +110,17 @@ function stopRound() {
 function handleTimeOut() {
     isRunning = false;
     cancelAnimationFrame(animationFrameId);
+    
     lives--;
     streakCount = 0; 
     updateStats();
+    
     messageEl.textContent = "TIME UP! (-1 Life)";
     animateMessageColor(messageEl, "#f00", 2000);
     triggerRippleEffect(lightPosition, 'miss');
+    
     timerBarEl.style.width = "0%";
+
     if (lives <= 0) {
         playSound(sfxLost);
         endGame();
@@ -136,26 +138,36 @@ function processResult() {
     let zoneType = "miss";
     let hitSuccess = false;
 
+    // 1. BULLSEYE
     if (hitPos >= bullMin && hitPos <= bullMax) {
         zoneType = "bullseye";
         streakCount++; 
         let points = 5;
         let isStreakBonus = false;
+
         if (streakCount === 5) {
             points += 20; isStreakBonus = true; streakCount = 0; 
         }
+
         score += points;
         if (lives < maxLives) lives++;
+        
         if (isStreakBonus) {
-            message = "🔥 STREAK! (+25 Points) 🔥"; color = "#ff00ff";
+            message = "🔥 STREAK! (+25 Points) 🔥";
+            color = "#ff00ff"; 
             playSound(sfxBullseye);
-            sfxBullseye.onended = function() { playSound(sfxStreak); sfxBullseye.onended = null; };
+            sfxBullseye.onended = function() {
+                playSound(sfxStreak);
+                sfxBullseye.onended = null; 
+            };
         } else {
-            message = `BULLSEYE! (+5) [Streak: ${streakCount}/5]`; color = "#0f0";
+            message = `BULLSEYE! (+5) [Streak: ${streakCount}/5]`;
+            color = "#0f0"; 
             playSound(sfxBullseye);
         }
         hitSuccess = true;
     } 
+    // 2. RING
     else if (hitPos >= ringMin && hitPos <= ringMax) {
         zoneType = "ring";
         streakCount = 0; 
@@ -165,21 +177,24 @@ function processResult() {
         playSound(sfxInside);
         hitSuccess = true;
     } 
+    // 3. MISS
     else {
         zoneType = "miss";
         streakCount = 0; 
         lives--;
         message = "MISS! (-1 Life)";
         color = "#f00"; 
+        
         if (lives > 0) playSound(sfxFail);
         hitSuccess = false;
     }
 
     triggerRippleEffect(hitPos, zoneType);
     
-    // Only change sequence if we actually hit something!
+    // Only increment difficulty on success
     if (hitSuccess) {
-        nextSequence();
+        sequencesCleared++; // Increase cleared count
+        nextSequence();     // Advance to next pattern
     }
 
     recalculateSpeed();
@@ -197,10 +212,11 @@ function processResult() {
 }
 
 function recalculateSpeed() {
-    if (score >= SCORE_THRESHOLD) {
+    // Speed increases based on sequencesCleared (maxes at 100)
+    if (sequencesCleared >= SEQUENCES_TO_MAX_SPEED) {
         currentSpeed = MAX_SPEED;
     } else {
-        const progress = score / SCORE_THRESHOLD;
+        const progress = sequencesCleared / SEQUENCES_TO_MAX_SPEED;
         const speedRange = MAX_SPEED - START_SPEED;
         currentSpeed = START_SPEED + (progress * speedRange);
     }
@@ -211,13 +227,9 @@ function initiateCooldown() {
     setTimeout(() => {
         if (!isGameOver) {
             clearMessageEffects(messageEl); 
-            // Important: We DON'T reset position to center anymore,
-            // because sequences define their own start positions.
-            // But we do need to reset the timer for the sequence to start fresh.
-            // Actually, nextSequence() already reset the timer if it was a hit.
-            // If it was a miss, we probably want to restart the SAME sequence?
-            // Let's reset the timer so the light starts at the beginning of the pattern.
-            sequenceTimer = 0; 
+            
+            // USE THE NEW HELPER FUNCTION HERE
+            resetSequenceTimer(); 
 
             isInputLocked = false;
             startRound(); 
@@ -225,7 +237,6 @@ function initiateCooldown() {
     }, 2000);
 }
 
-// Helper to reset visuals when starting fresh
 function resetPosition() {
     lightPosition = 50; 
     lightEl.style.left = '50%';
@@ -247,6 +258,7 @@ function endGame() {
 
 function resetGame() {
     score = 0;
+    sequencesCleared = 0; // Reset difficulty
     lives = 3;
     streakCount = 0; 
     currentSpeed = START_SPEED;
@@ -254,8 +266,7 @@ function resetGame() {
     isInputLocked = false;
     isRunning = false;
     
-    // Reset Sequences to the first one
-    resetSequences();
+    resetSequences(); // Back to Sequence 1
 
     cancelAnimationFrame(animationFrameId); 
     
@@ -267,6 +278,7 @@ function resetGame() {
     messageEl.style.color = "#ffcc00";
 }
 
+// --- Event Listeners ---
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') {
         e.preventDefault();
